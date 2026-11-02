@@ -1,0 +1,70 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' file:; media-src 'self' file:; connect-src 'none'; object-src 'none'"><title>QQ 聊天记录</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f3f5f6;color:#1d3036;font:15px/1.6 system-ui,"Microsoft YaHei",sans-serif}.wrap{max-width:850px;margin:auto;padding:0 16px}header{background:#fbfcfcf7;border-bottom:1px solid #dce3e5;position:sticky;top:0;z-index:2}h1{font-size:19px;margin:0}.top{padding:12px 0 4px;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}.meta,#status{color:#52676d;font-size:13px}nav{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:4px 0 10px}button,select,input{border:1px solid #cbd6d9;border-radius:6px;background:white;color:inherit;font:inherit;padding:4px 9px}button{cursor:pointer}button:disabled{opacity:.45;cursor:default}input{flex:1;min-width:125px}main{padding-bottom:36px}.day{text-align:center;margin:18px auto;color:#5b7178;font-size:13px}.entry{margin:10px 0;display:flex;align-items:flex-start;flex-direction:column}.entry.me{align-items:flex-end}.stamp{font-size:12px;color:#556b73;margin-bottom:3px}.bubble{white-space:pre-wrap;overflow-wrap:anywhere;max-width:84%;border-radius:12px;background:white;padding:8px 12px;border:1px solid #e0e7e9}.me .bubble{background:#d7f1e9;border-color:#c5e3db}.chip{color:#526b77;font-size:13px}.quote{background:#00000008;border-left:3px solid #8ea3aa;color:#4d646d;padding:4px 8px;margin:2px 0 6px;font-size:13px}.asset{display:block;padding-top:4px;max-width:100%}.asset img,.asset video{max-width:min(100%,320px);max-height:280px;object-fit:contain;border-radius:7px;vertical-align:middle}audio{max-width:100%;width:250px}a{color:#1d6862}details{font-size:13px;margin-top:4px}#more{display:block;margin:24px auto}.empty{text-align:center;margin:44px 0;color:#53676e}@media(max-width:560px){.wrap{padding:0 8px}nav{gap:4px}.meta{font-size:11px}.top{gap:4px}.bubble{max-width:92%}button,select,input{font-size:13px}}
+
+.me .bubble{background:#cfeaff;border-color:#c0def4}.bubble .face{width:1.75em;height:1.75em;object-fit:contain;vertical-align:middle}.bubble:has(>img.face:only-child) .face{width:42px;height:42px}.voice{display:inline-flex;align-items:center;gap:12px;min-width:104px;justify-content:space-between;border:none;background:transparent;padding:4px 0;color:#163f5f;font-weight:600}.voice[aria-pressed=true]{color:#006caa}.voice-link{font-size:11px;margin-inline-start:8px}.call{border-left:3px solid #6295b4;padding-left:9px}.asset img{cursor:zoom-in}.asset video{background:#151a1c}dialog{background:#101516;border:0;color:white;max-width:98vw;max-height:96vh;padding:8px 8px 0;border-radius:8px}dialog::backdrop{background:#111c}dialog img{max-width:92vw;max-height:82vh;object-fit:contain;display:block;margin:auto}dialog button{display:block;margin:8px auto;background:#fff;color:#123}
+</style>
+<header><div class="wrap"><div class="top"><h1>QQ 聊天记录</h1><span class="meta" id="summary"></span></div><nav><select id="month" aria-label="选择月份"></select><input id="query" placeholder="搜索正文或引用" aria-label="搜索正文或引用"><button id="prev">上一段</button><button id="next">下一段</button><span id="status" aria-live="polite"></span></nav></div></header><main class="wrap"><div id="log"></div><button id="more">继续向下翻</button></main>
+<dialog id="photoViewer" aria-label="查看大图"><img id="fullPhoto" alt=""><button id="closePhoto">关闭大图</button></dialog><script>
+/*ARCHIVE_DATA*/
+const $=s=>document.getElementById(s);
+const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!=null)n.textContent=text;if(cls)n.className=cls;return n};
+const months=Array.from(new Set(rows.map(r=>r[1].slice(0,7))));
+$('month').add(new Option('全部月份',''));for(const m of months)$('month').add(new Option(m,m));
+$('summary').textContent='与 '+peer+' 的会话 · '+rows.length.toLocaleString('zh-CN')+' 条 · 北京时间';
+let filtered=rows,start=0,shown=0,day='',timer;const batch=200;
+let activeVoice=null;
+const dialog=$('photoViewer'), photo=$('fullPhoto');
+function showPhoto(src,label){photo.src=src;photo.alt=label;dialog.showModal()}
+$('closePhoto').onclick=()=>dialog.close();
+dialog.onclick=e=>{if(e.target===dialog)dialog.close()};
+dialog.addEventListener('close',()=>photo.removeAttribute('src'));
+function voice(url,file){
+ const box=el('div',null,'voice-wrap'),btn=el('button',null,'voice'),icon=el('span','▷'),word=el('span','语音'),duration=el('span',''),av=el('audio'),open=el('a','打开音频','voice-link');
+ open.href=url;open.target='_blank';open.rel='noopener';
+ const secs=voiceSeconds[file];duration.textContent=secs!=null?secs+'″':'';
+ btn.type='button';btn.setAttribute('aria-label','播放语音 '+duration.textContent);btn.setAttribute('aria-pressed','false');btn.append(icon,word,duration);av.preload='none';av.src=url;
+ btn.onclick=async()=>{if(av.paused){if(activeVoice&&activeVoice!==av)activeVoice.pause();activeVoice=av;try{await av.play()}catch{word.textContent='播放失败'}}else av.pause()};
+ av.onplay=()=>{icon.textContent='Ⅱ';word.textContent='播放中';btn.setAttribute('aria-pressed','true')};
+ av.onpause=()=>{icon.textContent='▷';word.textContent='语音';btn.setAttribute('aria-pressed','false')};
+ av.onended=()=>{av.onpause();activeVoice=null};
+ box.append(btn,av,open);return box;
+}
+function asset(i,preview){
+ const file=files[i],ext=file.split('.').at(-1),url='媒体/'+file;
+ const images=['jpg','png','gif','webp'].includes(ext),label=images?'图片':ext==='mp4'?'视频':ext==='wav'||ext==='mp3'?'音频':'附件';
+ const a=el('a',null,'asset');a.href=url;
+ if(preview&&images){a.onclick=e=>{if(!e.ctrlKey&&!e.metaKey){e.preventDefault();showPhoto(url,label)}};const img=el('img');img.loading='lazy';img.alt='查看'+label;img.src=url;a.append(img);return a}
+ if(preview&&ext==='wav')return voice(url,file);
+ if(preview&&['mp4','mp3'].includes(ext)){const av=el(ext==='mp4'?'video':'audio',null,'asset');av.preload='none';av.controls=true;av.playsInline=true;av.src=url;return av}
+ a.textContent=label+' · '+ext.toUpperCase();a.download=file;return a;
+}
+function renderRow(row){
+ const [,date,side,parts,ids]=row;const n=el('article',null,'entry'+(side===1?' me':''));n.dataset.row=row[0];
+ const name=side===1?'我':side===2?peer:side===0?'系统':side==='?'?'发送人未知':side;
+ n.append(el('div',name+'  '+date,'stamp'));
+ const b=el('div',null,'bubble'),used=new Set();
+ for(const [type,text,a,id] of parts){
+  if(type==='e'){
+   const img=el('img',null,'face');img.src='系统表情/'+a+'.png';img.alt=text;img.title=text;img.loading='lazy';b.append(img);
+  }else if(type==='m'){
+   if(id!=null){used.add(id);if(a===3)b.append(el('div',text,'chip'));b.append(asset(id,true))}
+   else b.append(el('div',text+' · 备份中未匹配到文件','chip'));
+  }else if(type==='call'){b.append(el('div',text,'call'))}
+  else b.append(el(type==='t'?'span':'div',text,type==='q'?'quote':type==='c'?'chip':''));
+ }
+ const extras=ids.filter(i=>!used.has(i));
+ if(extras.length){const d=el('details');d.append(el('summary','关联资源（'+extras.length+'）'));d.ontoggle=()=>{if(d.open&&d.childElementCount===1)for(const i of extras)d.append(asset(i,true))};b.append(d)}
+ n.append(b);return n;
+}
+function appendBatch(){
+ const end=Math.min(shown+batch,filtered.length),frag=document.createDocumentFragment();
+ for(let i=shown;i<end;i++){const date=filtered[i][1].slice(0,10);if(date!==day){frag.append(el('div',date,'day'));day=date}frag.append(renderRow(filtered[i]))}
+ shown=end;$('log').append(frag);$('status').textContent=filtered.length?((start+1)+'–'+shown+' / '+filtered.length):'0 条';
+ $('more').style.display=shown<filtered.length?'block':'none';$('prev').disabled=start===0;$('next').disabled=shown>=filtered.length;
+}
+function page(from){if(activeVoice){activeVoice.pause();activeVoice=null;}start=Math.max(0,from);shown=start;day='';$('log').replaceChildren();if(!filtered.length)$('log').append(el('p','没有找到匹配的消息','empty'));appendBatch();window.scrollTo(0,0)}
+function filter(){const m=$('month').value,q=$('query').value.trim().toLowerCase();filtered=!m&&!q?rows:rows.filter(r=>(!m||r[1].startsWith(m))&&(!q||r[3].some(p=>p[1].toLowerCase().includes(q))));page(0)}
+$('month').onchange=filter;$('query').oninput=()=>{clearTimeout(timer);timer=setTimeout(filter,180)};
+$('more').onclick=appendBatch;$('prev').onclick=()=>page(start-batch);$('next').onclick=()=>page(shown);page(0);
+</script></html>

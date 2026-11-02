@@ -25,3 +25,4 @@
 | [technical-writing](skills/06-code-quality-review/technical-writing/SKILL.md) | 代码质量与评审 | 写文档、RFC、README、PR 描述、commit message 的写作规范 | [cursor/plugins pstack](https://github.com/cursor/plugins/tree/main/pstack/skills/technical-writing) |
 | [video-evidence](skills/02-product-verification/video-evidence/SKILL.md) | 产品验证 | 录屏留证：把 agent 的操作录成带字幕的视频、截图和时间线给人看，不做断言 | 自写，参考 Thariq《How We Use Skills》 |
 | [step-assertions](skills/02-product-verification/step-assertions/SKILL.md) | 产品验证 | 逐步断言：每步程序化检查状态，输出 pass/fail 报告、console 错误和失败请求，不录视频 | 自写，参考 Thariq《How We Use Skills》 |
+| [qq-msgbackup-recovery](skills/03-data-analysis/qq-msgbackup-recovery/SKILL.md) | 数据与分析 | 从手机 QQ 生成 Windows MSG0 备份，验证解密并导出可播放的离线私聊网页 | 自写，含实测脚本与操作截图 |
