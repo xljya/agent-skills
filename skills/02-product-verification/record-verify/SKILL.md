@@ -125,6 +125,39 @@ evidence/
 7. 失败了先报告，不要悄悄改 spec 或放宽断言让它变绿；修改 spec 要说明原因。
 8. 证据包（视频、截图）可能含敏感信息，**不要提交进公开仓库**，输出目录放在仓库之外或加进 `.gitignore`。
 
+## 配合 agent-browser：先探索，再固化成 spec
+
+[agent-browser](https://github.com/vercel-labs/agent-browser)（Vercel Labs）是给 agent 用的浏览器命令行工具。它输出页面的可访问性快照，元素用 `@e1` 这类短引用表示，很省 token，适合**探索**一个还不熟的页面。它不适合当最终验证：引用每次快照都可能变，回放也不稳定。分工如下：
+
+| 阶段 | 用什么 | 目的 |
+|---|---|---|
+| 探索 | agent-browser | 摸清页面结构，找到稳定的 selector，试通流程 |
+| 验证 | `run_verify.py` + spec | 步骤固定、可重复跑，每步断言，录像和报告作为证据 |
+
+安装：`npm install -g agent-browser && agent-browser install`（Linux 缺系统库时用 `agent-browser install --with-deps`）。
+
+探索流程：
+
+```bash
+agent-browser open http://127.0.0.1:3000/login
+agent-browser wait --load domcontentloaded
+agent-browser snapshot -i                 # 只列可交互元素，带 @e1、@e2 引用
+agent-browser fill @e3 "tester@example.com"
+agent-browser click @e5
+agent-browser get url                     # 看跳到了哪
+agent-browser snapshot -i                 # 看新页面
+agent-browser console && agent-browser errors   # 顺手看有没有报错
+agent-browser close
+```
+
+把探索结果固化成 spec：
+
+1. **不要把 `@eN` 写进 spec**，它只在当次快照里有效。把它换成稳定的 selector：快照里的 role 和 name 写成 `role=button[name="登录"]`，或用 label、`data-testid`、`text=...`。需要时可以用 `agent-browser get attr @e5 data-testid` 查属性。
+2. 探索时每看到一个「结果」（跳转后的 URL、出现的标题、列表数量），就在 spec 里对应写一个 `assert_url`、`assert_text`、`assert_count`。
+3. 跑 `run_verify.py`，以它的报告为准。agent-browser 的探索过程不算验证结果。
+
+agent-browser 自己也能录像（`agent-browser record start ./demo.webm --cursor`，然后 `record stop`，需要 ffmpeg），适合给人演示一次探索过程。但它没有逐步断言和报告，交付证据仍以 `run_verify.py` 的证据包为准。
+
 ## 可选：CLI / 终端程序的验证
 
 脚本 `scripts/record_terminal.sh` 逐条执行命令、断言输出里包含某个字符串，产出 `session.log` 和逐条 PASS/FAIL 的 `report.md`：
