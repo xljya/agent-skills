@@ -1,0 +1,6 @@
+# 页面表面正常，但有 console 错误和 404 请求: 默认只在报告里警告，加 --strict 则整体 FAIL。
+name: demo broken page (hidden errors)
+base_url: http://127.0.0.1:8765
+steps:
+  - goto: /broken.html
+  - assert_text: { selector: "#msg", contains: "看起来正常" }

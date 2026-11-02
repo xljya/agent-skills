@@ -23,3 +23,4 @@
 | 技能 | 分类 | 用途 | 来源 |
 |---|---|---|---|
 | [technical-writing](skills/06-code-quality-review/technical-writing/SKILL.md) | 代码质量与评审 | 写文档、RFC、README、PR 描述、commit message 的写作规范 | [cursor/plugins pstack](https://github.com/cursor/plugins/tree/main/pstack/skills/technical-writing) |
+| [record-verify](skills/02-product-verification/record-verify/SKILL.md) | 产品验证 | 录屏 + 逐步断言验证网页产品，输出视频、截图、pass/fail 报告、console 错误和失败请求证据包 | 自写，参考 Thariq《How We Use Skills》 |

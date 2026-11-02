@@ -1,0 +1,11 @@
+# 故意失败的 spec，用来确认 runner 会把错误断言报告为 FAIL (退出码 1)。
+name: demo todo app (deliberate failure)
+base_url: http://127.0.0.1:8765
+timeout_ms: 1500
+steps:
+  - goto: /index.html
+  - assert_text: { selector: "h1", equals: "Todo Demo" }
+  - name: 故意写错的期望 (应该 FAIL)
+    assert_count: { selector: "#list li", equals: 5 }
+  - name: 这一步应被 SKIPPED (除非 --keep-going)
+    assert_visible: "#status"

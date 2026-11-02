@@ -1,0 +1,32 @@
+# record-verify 示例 spec: 对一个本地小页面做端到端验证。
+# 先起服务: python -m http.server 8765 --directory examples/demo-app
+# 再运行:   python scripts/run_verify.py examples/example-spec.yaml --out ./evidence --mp4
+name: demo todo app
+base_url: http://127.0.0.1:8765
+viewport: { width: 1000, height: 640 }
+timeout_ms: 4000
+# allowed_hosts: [127.0.0.1]     # 可选: 只允许访问这些主机，其余请求会被拦截并记录
+
+steps:
+  - name: 打开首页
+    goto: /index.html
+  - name: 标题可见
+    assert_visible: "h1"
+  - assert_text: { selector: "h1", equals: "Todo Demo" }
+  - assert_count: { selector: "#list li", equals: 0 }
+  - name: 输入第一个待办
+    fill: { selector: "#new-item", value: "买牛奶" }
+  - name: 回车添加
+    press: { selector: "#new-item", key: "Enter" }
+  - assert_count: { selector: "#list li", equals: 1 }
+  - assert_text: { selector: "#list li:first-child .label", contains: "牛奶" }
+  - name: 再添加一个并点击按钮
+    fill: { selector: "#new-item", value: "写周报" }
+  - click: "#add-btn"
+  - assert_count: { selector: "#list li", min: 2 }
+  - name: 勾选完成第一项
+    click: "#list li:first-child input[type=checkbox]"
+  - assert_text: { selector: "#status", regex: "1 / 2" }
+  - assert_eval: { js: "document.querySelectorAll('#list li.done').length", equals: 1 }
+  - assert_url: { contains: "/index.html" }
+  - screenshot: final-state
