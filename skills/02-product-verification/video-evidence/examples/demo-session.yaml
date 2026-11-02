@@ -1,0 +1,25 @@
+# video-evidence 示例: 只有动作，没有断言。note 步骤会在视频里显示一条蓝色说明字幕。
+# 先起服务: python -m http.server 8765 --directory examples/demo-app
+# 再运行:   python scripts/record_session.py examples/demo-session.yaml --out ./recording --mp4
+name: demo todo app walkthrough
+base_url: http://127.0.0.1:8765
+viewport: { width: 1000, height: 640 }
+timeout_ms: 4000
+# allowed_hosts: [127.0.0.1]     # 可选: 只允许访问这些主机，其余请求被拦截并记入 steps.md
+
+steps:
+  - note: "演示: 往待办列表里添加两项，并勾选一项"
+  - goto: /index.html
+  - name: 输入第一个待办
+    fill: { selector: "#new-item", value: "买牛奶" }
+  - name: 回车添加
+    press: { selector: "#new-item", key: "Enter" }
+  - name: 输入第二个待办
+    fill: { selector: "#new-item", value: "写周报" }
+  - name: 点击「添加」按钮
+    click: "#add-btn"
+  - name: 勾选第一项
+    click: "#list li:first-child input[type=checkbox]"
+  - scroll: bottom
+  - screenshot: final-state
+  - note: "结束: 列表有 2 项，第一项已完成（视频只展示过程，不代表验证通过）"

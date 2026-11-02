@@ -23,4 +23,5 @@
 | 技能 | 分类 | 用途 | 来源 |
 |---|---|---|---|
 | [technical-writing](skills/06-code-quality-review/technical-writing/SKILL.md) | 代码质量与评审 | 写文档、RFC、README、PR 描述、commit message 的写作规范 | [cursor/plugins pstack](https://github.com/cursor/plugins/tree/main/pstack/skills/technical-writing) |
-| [record-verify](skills/02-product-verification/record-verify/SKILL.md) | 产品验证 | 录屏 + 逐步断言验证网页产品，输出视频、截图、pass/fail 报告、console 错误和失败请求证据包 | 自写，参考 Thariq《How We Use Skills》 |
+| [video-evidence](skills/02-product-verification/video-evidence/SKILL.md) | 产品验证 | 录屏留证：把 agent 的操作录成带字幕的视频、截图和时间线给人看，不做断言 | 自写，参考 Thariq《How We Use Skills》 |
+| [step-assertions](skills/02-product-verification/step-assertions/SKILL.md) | 产品验证 | 逐步断言：每步程序化检查状态，输出 pass/fail 报告、console 错误和失败请求，不录视频 | 自写，参考 Thariq《How We Use Skills》 |

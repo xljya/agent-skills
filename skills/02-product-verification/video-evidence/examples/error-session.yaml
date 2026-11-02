@@ -1,0 +1,9 @@
+# 故意出错: 点击一个不存在的元素。录像会停在这里，字幕变红，steps.md 里记下 ERROR。
+name: demo error session
+base_url: http://127.0.0.1:8765
+timeout_ms: 1500
+steps:
+  - goto: /index.html
+  - name: 点击不存在的按钮
+    click: "#no-such-button"
+  - note: "这一步不会被执行"

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><title>Todo Demo</title>
+<style>body{font:16px system-ui;max-width:480px;margin:40px auto}li.done .label{text-decoration:line-through;color:#888}
+li{margin:6px 0}</style></head>
+<body>
+<h1>Todo Demo</h1>
+<input id="new-item" placeholder="新的待办"> <button id="add-btn">添加</button>
+<ul id="list"></ul>
+<p id="status">0 / 0</p>
+<script>
+const list = document.getElementById('list'), input = document.getElementById('new-item');
+function refresh(){ const all=list.children.length, done=list.querySelectorAll('li.done').length;
+  document.getElementById('status').textContent = done + ' / ' + all; }
+function add(){ const t=input.value.trim(); if(!t) return;
+  const li=document.createElement('li'); li.innerHTML='<input type="checkbox"> <span class="label"></span>';
+  li.querySelector('.label').textContent=t;
+  li.querySelector('input').addEventListener('change',e=>{li.classList.toggle('done',e.target.checked);refresh();});
+  list.appendChild(li); input.value=''; refresh(); }
+document.getElementById('add-btn').addEventListener('click',add);
+input.addEventListener('keydown',e=>{ if(e.key==='Enter') add(); });
+</script></body></html>

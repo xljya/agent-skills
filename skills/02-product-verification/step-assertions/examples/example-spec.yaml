@@ -1,6 +1,6 @@
-# record-verify 示例 spec: 对一个本地小页面做端到端验证。
+# step-assertions 示例 spec: 对一个本地小页面做端到端验证。
 # 先起服务: python -m http.server 8765 --directory examples/demo-app
-# 再运行:   python scripts/run_verify.py examples/example-spec.yaml --out ./evidence --mp4
+# 再运行:   python scripts/run_assertions.py examples/example-spec.yaml --out ./evidence --screenshot-every-step
 name: demo todo app
 base_url: http://127.0.0.1:8765
 viewport: { width: 1000, height: 640 }

@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""record-verify runner: 用 Playwright 跑一份 step spec，录视频、逐步断言、产出证据包。
+"""step-assertions runner: 用 Playwright 跑一份 step spec，每一步做程序化断言，输出 pass/fail 报告。
+
+不录视频。失败步骤自动截图；--screenshot-every-step 可让每步都截图。
 
 用法:
-    python run_verify.py spec.yaml --out ./evidence [--headed] [--keep-going]
-                         [--trace] [--mp4] [--gif] [--strict] [--base-url URL]
+    python run_assertions.py spec.yaml --out ./evidence [--keep-going] [--strict]
+                             [--screenshot-every-step] [--trace] [--headed] [--base-url URL]
 
 退出码: 0 = 全部通过, 1 = 有步骤失败 (或 --strict 下有 console 错误/请求失败), 2 = spec 或环境错误。
-依赖: playwright (必需), pyyaml (仅当 spec 是 .yaml/.yml), ffmpeg (可选，用于 mp4/gif)。
+依赖: playwright (必需), pyyaml (仅当 spec 是 .yaml/.yml)。
 """
 from __future__ import annotations
 
@@ -15,7 +17,6 @@ import json
 import os
 import re
 import shutil
-import subprocess
 import sys
 import time
 import traceback
@@ -246,31 +247,6 @@ def check_number(n: int, a: dict):
     return ok, " and ".join(parts)
 
 
-# ----------------------------------------------------------------- 视频字幕 (页面内 overlay)
-CAPTION_JS = """
-(args) => {
-  let el = document.getElementById('__rv_caption');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = '__rv_caption';
-    el.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:2147483647;padding:8px 14px;' +
-      'font:600 15px/1.3 system-ui,sans-serif;color:#fff;pointer-events:none;';
-    (document.documentElement || document.body).appendChild(el);
-  }
-  el.style.background = args.status === 'FAIL' ? 'rgba(200,30,30,.92)' :
-                        args.status === 'PASS' ? 'rgba(20,130,60,.92)' : 'rgba(30,30,30,.88)';
-  el.textContent = args.text;
-}
-"""
-
-
-def set_caption(page, text, status="RUN"):
-    try:
-        page.evaluate(CAPTION_JS, {"text": text, "status": status})
-    except Exception:
-        pass  # 页面正在跳转时忽略
-
-
 # ----------------------------------------------------------------- 报告
 def write_reports(out: Path, report: dict):
     (out / "report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -298,43 +274,17 @@ def write_reports(out: Path, report: dict):
     (out / "report.md").write_text("\n".join(L), encoding="utf-8")
 
 
-# ----------------------------------------------------------------- ffmpeg
-def ffmpeg_convert(webm: Path, out: Path, want_mp4: bool, want_gif: bool) -> dict:
-    res = {}
-    if not (want_mp4 or want_gif):
-        return res
-    if not shutil.which("ffmpeg"):
-        print("[warn] 没找到 ffmpeg，跳过 mp4/gif 转换", file=sys.stderr)
-        return res
-    if want_mp4:
-        mp4 = out / "video.mp4"
-        r = subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(webm), "-c:v", "libx264",
-                            "-pix_fmt", "yuv420p", "-movflags", "+faststart",
-                            "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2", str(mp4)])
-        if r.returncode == 0:
-            res["mp4"] = mp4.name
-    if want_gif:
-        gif = out / "video.gif"
-        r = subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(webm), "-vf",
-                            "fps=8,scale=800:-1:flags=lanczos", str(gif)])
-        if r.returncode == 0:
-            res["gif"] = gif.name
-    return res
-
-
 # ----------------------------------------------------------------- 主流程
 def main() -> int:
-    ap = argparse.ArgumentParser(description="record-verify: 录像 + 逐步断言 + 证据包")
+    ap = argparse.ArgumentParser(description="step-assertions: 逐步断言 + pass/fail 报告")
     ap.add_argument("spec", help="spec 文件 (.yaml/.yml/.json)")
-    ap.add_argument("--out", default="evidence", help="证据输出目录 (默认 ./evidence)")
+    ap.add_argument("--out", default="evidence", help="输出目录 (默认 ./evidence)")
     ap.add_argument("--base-url", help="覆盖 spec 里的 base_url")
     ap.add_argument("--headed", action="store_true", help="有界面运行 (默认 headless)")
     ap.add_argument("--keep-going", action="store_true", help="断言失败后继续跑后面的步骤")
     ap.add_argument("--strict", action="store_true", help="console 错误或请求失败也算 FAIL")
     ap.add_argument("--trace", action="store_true", help="额外保存 Playwright trace.zip")
-    ap.add_argument("--mp4", action="store_true", help="用 ffmpeg 额外转 video.mp4")
-    ap.add_argument("--gif", action="store_true", help="用 ffmpeg 额外生成 video.gif")
-    ap.add_argument("--no-caption", action="store_true", help="视频里不叠加步骤字幕")
+    ap.add_argument("--screenshot-every-step", action="store_true", help="每步都截图 (默认只在失败时截图)")
     ap.add_argument("--browser", default="chromium", choices=["chromium", "firefox", "webkit"])
     args = ap.parse_args()
 
@@ -357,8 +307,8 @@ def main() -> int:
     out = Path(args.out).resolve()
     if out.exists():
         shutil.rmtree(out)
-    shots_dir, raw_video = out / "screenshots", out / "_video_raw"
-    shots_dir.mkdir(parents=True); raw_video.mkdir()
+    shots_dir = out / "screenshots"
+    shots_dir.mkdir(parents=True)
 
     ctx_info = {"base_url": base_url, "timeout_ms": int(spec.get("timeout_ms", 5000)), "shots_dir": shots_dir}
     report = {"name": spec.get("name", Path(args.spec).stem), "base_url": base_url,
@@ -371,8 +321,7 @@ def main() -> int:
 
     with sync_playwright() as p:
         browser = getattr(p, args.browser).launch(headless=not args.headed, slow_mo=int(spec.get("slow_mo_ms", 0)))
-        context = browser.new_context(viewport=viewport, record_video_dir=str(raw_video),
-                                      record_video_size=viewport, ignore_https_errors=bool(spec.get("ignore_https_errors")))
+        context = browser.new_context(viewport=viewport, ignore_https_errors=bool(spec.get("ignore_https_errors")))
         if args.trace:
             context.tracing.start(screenshots=True, snapshots=True, sources=False)
         if allowed_hosts:
@@ -403,8 +352,6 @@ def main() -> int:
                 rec["status"] = "SKIPPED"
                 report["steps"].append(rec)
                 continue
-            if not args.no_caption:
-                set_caption(page, f"Step {i}/{len(steps)}: {name}")
             t0 = time.time()
             try:
                 rec["detail"] = run_action(page, action, arg, raw, ctx_info)
@@ -416,15 +363,13 @@ def main() -> int:
             except Exception as e:  # Playwright 超时等
                 rec["status"], rec["error"] = "FAIL", f"{type(e).__name__}: {first_line(e)}"
             rec["duration_ms"] = int((time.time() - t0) * 1000)
-            if not args.no_caption:
-                set_caption(page, f"Step {i}/{len(steps)}: {name} — {rec['status']}", rec["status"])
-                page.wait_for_timeout(350)  # 让结果字幕在视频里停留一下
-            shot = shots_dir / f"{i:02d}-{rec['status'].lower()}.png"
-            try:
-                page.screenshot(path=str(shot))
-                rec["screenshot"] = f"screenshots/{shot.name}"
-            except Exception:
-                pass
+            if rec["status"] == "FAIL" or args.screenshot_every_step:
+                shot = shots_dir / f"{i:02d}-{rec['status'].lower()}.png"
+                try:
+                    page.screenshot(path=str(shot))
+                    rec["screenshot"] = f"screenshots/{shot.name}"
+                except Exception:
+                    pass
             report["steps"].append(rec)
             if rec["status"] == "FAIL":
                 report["status"] = "FAIL"
@@ -434,21 +379,15 @@ def main() -> int:
             else:
                 print(f"  ✓ step {i} {name}")
 
-        video = page.video
         if args.trace:
             context.tracing.stop(path=str(out / "trace.zip"))
-        context.close()  # 关闭后视频才会落盘
-        vpath = Path(video.path()) if video else None
+        context.close()
         browser.close()
 
-    if vpath and vpath.exists():
-        shutil.move(str(vpath), out / "video.webm")
-        report["artifacts"]["video"] = "video.webm"
-    shutil.rmtree(raw_video, ignore_errors=True)
-    report["artifacts"].update(ffmpeg_convert(out / "video.webm", out, args.mp4, args.gif))
     if args.trace:
         report["artifacts"]["trace"] = "trace.zip (npx playwright show-trace / playwright show-trace)"
-    report["artifacts"]["screenshots"] = "screenshots/"
+    if any(x.get("screenshot") for x in report["steps"]):
+        report["artifacts"]["screenshots"] = "screenshots/"
 
     if args.strict and (report["console_errors"] or report["failed_requests"]):
         report["status"] = "FAIL"

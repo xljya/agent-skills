@@ -1,4 +1,4 @@
 # <命令> || <期望输出包含的字符串>
-echo hello record-verify || hello record-verify
+echo hello step-assertions || hello step-assertions
 python3 --version || Python 3
 printf 'a\nb\n' | wc -l || 2
